@@ -14,16 +14,20 @@
   let lastVideoId = null;
   let consecutiveSkips = 0;
   let threshold = DEFAULT_THRESHOLD;
+  let autoplayEnabled = true;
   let pendingCheck = null; // timeout ID for the current scheduled check
+  let currentVideoEl = null; // video element with autoplay listener
+  let videoWasNearEnd = false; // tracks if video reached near-end before looping
 
   console.log(TAG, 'Content script loaded. URL:', location.href);
 
   // --- Settings ---
 
   function loadSettings() {
-    chrome.storage.sync.get({ threshold: DEFAULT_THRESHOLD }, (result) => {
+    chrome.storage.sync.get({ threshold: DEFAULT_THRESHOLD, autoplayEnabled: true }, (result) => {
       threshold = result.threshold;
-      console.log(TAG, 'Threshold loaded:', threshold);
+      autoplayEnabled = result.autoplayEnabled;
+      console.log(TAG, 'Settings loaded — threshold:', threshold, 'autoplay:', autoplayEnabled);
     });
   }
 
@@ -31,6 +35,11 @@
     if (changes.threshold) {
       threshold = changes.threshold.newValue;
       console.log(TAG, 'Threshold updated:', threshold);
+    }
+    if (changes.autoplayEnabled) {
+      autoplayEnabled = changes.autoplayEnabled.newValue;
+      console.log(TAG, 'Autoplay updated:', autoplayEnabled);
+      if (!autoplayEnabled) detachAutoplay();
     }
   });
 
@@ -98,6 +107,7 @@
       observer = null;
     }
     cancelCheck();
+    detachAutoplay();
     lastVideoId = null;
     consecutiveSkips = 0;
     notifyBackground(false);
@@ -149,6 +159,7 @@
     if (!videoId) return;
     if (videoId === lastVideoId) return;
 
+    detachAutoplay();
     console.log(TAG, '--- Processing short:', videoId);
     lastVideoId = videoId;
 
@@ -197,6 +208,7 @@
     } else {
       console.log(TAG, 'KEEP', videoId, '(' + likeCount, '>=', threshold + ')');
       consecutiveSkips = 0;
+      attachAutoplay();
     }
   }
 
@@ -358,6 +370,52 @@
           outerHTML: el.outerHTML.substring(0, 300),
         });
       });
+    }
+  }
+
+  // --- Autoplay Next ---
+  //
+  // YouTube sets video.loop = true on Shorts, so the video loops natively
+  // and "ended" never fires. We leave loop intact and detect the loop
+  // restart via "timeupdate": once currentTime reaches the last 0.5s we
+  // set a flag, and when currentTime jumps back near 0 we advance.
+
+  function attachAutoplay() {
+    detachAutoplay();
+    if (!autoplayEnabled) return;
+
+    const renderer = getActiveRenderer();
+    if (!renderer) return;
+
+    const video = renderer.querySelector('video');
+    if (!video) return;
+
+    videoWasNearEnd = false;
+    currentVideoEl = video;
+    video.addEventListener('timeupdate', onTimeUpdate);
+    console.log(TAG, 'Autoplay: attached (duration:', video.duration + ')');
+  }
+
+  function detachAutoplay() {
+    if (currentVideoEl) {
+      currentVideoEl.removeEventListener('timeupdate', onTimeUpdate);
+      currentVideoEl = null;
+    }
+    videoWasNearEnd = false;
+  }
+
+  function onTimeUpdate() {
+    const v = currentVideoEl;
+    if (!v || !v.duration || v.duration === Infinity) return;
+
+    if (v.currentTime >= v.duration - 0.5) {
+      videoWasNearEnd = true;
+    } else if (videoWasNearEnd && v.currentTime < 1) {
+      console.log(TAG, 'Loop restart detected, advancing to next.');
+      videoWasNearEnd = false;
+      if (isOnShorts() && autoplayEnabled) {
+        skipShort();
+      }
     }
   }
 

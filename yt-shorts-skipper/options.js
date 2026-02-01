@@ -3,12 +3,14 @@
 
   const DEFAULT_THRESHOLD = 1000;
   const thresholdInput = document.getElementById('threshold');
+  const autoplayCheckbox = document.getElementById('autoplay');
   const saveBtn = document.getElementById('save');
   const statusEl = document.getElementById('status');
 
-  // Load saved value
-  chrome.storage.sync.get({ threshold: DEFAULT_THRESHOLD }, (result) => {
+  // Load saved values
+  chrome.storage.sync.get({ threshold: DEFAULT_THRESHOLD, autoplayEnabled: true }, (result) => {
     thresholdInput.value = result.threshold;
+    autoplayCheckbox.checked = result.autoplayEnabled;
   });
 
   saveBtn.addEventListener('click', () => {
@@ -18,7 +20,7 @@
       statusEl.style.color = '#f44336';
       return;
     }
-    chrome.storage.sync.set({ threshold: value }, () => {
+    chrome.storage.sync.set({ threshold: value, autoplayEnabled: autoplayCheckbox.checked }, () => {
       statusEl.textContent = 'Saved!';
       statusEl.style.color = '#4CAF50';
       setTimeout(() => {

@@ -29,6 +29,14 @@ Three outcomes:
 - **Element found, empty text or "Like"** — treated as 0 likes (immediate skip)
 - **Element not found** — polls every 400ms up to 4s, then treats as 0
 
+### Autoplay Next
+
+When a kept Short finishes playing, the extension automatically advances to the next one. This is enabled by default and can be toggled in Options ("Auto-advance when Short ends").
+
+YouTube sets `video.loop = true` on Shorts so the native `ended` event never fires. The extension leaves loop intact and instead listens for `timeupdate`: once `currentTime` reaches the last 0.5 seconds a flag is set, and when `currentTime` then jumps back below 1 second (loop restart) it calls `skipShort()` to advance.
+
+Listeners are cleaned up when navigating away from Shorts, when a new Short is processed, or when the feature is toggled off in settings.
+
 ### Skipping
 
 Dispatches an `ArrowDown` KeyboardEvent, which uses YouTube's own navigation handler. `scrollBy()` was tested but leaves YouTube's internal state inconsistent.
