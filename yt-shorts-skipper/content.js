@@ -1,6 +1,10 @@
 (function () {
   'use strict';
 
+  // Prevent double initialization if script is injected multiple times
+  if (window.__ytShortsSkipperLoaded) return;
+  window.__ytShortsSkipperLoaded = true;
+
   const TAG = '[YT Shorts Skipper]';
   const DEFAULT_THRESHOLD = 1000;
   const MAX_CONSECUTIVE_SKIPS = 20;

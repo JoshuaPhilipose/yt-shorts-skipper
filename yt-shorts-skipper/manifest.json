@@ -3,7 +3,7 @@
   "name": "YouTube Shorts Auto-Skipper",
   "version": "1.0.0",
   "description": "Automatically skips YouTube Shorts with under a configurable number of likes.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "scripting", "tabs"],
   "host_permissions": ["*://www.youtube.com/*"],
   "content_scripts": [
     {
